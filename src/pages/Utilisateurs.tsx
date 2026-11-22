@@ -14,6 +14,8 @@ export default function Utilisateurs() {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("secretaire");
   const [erreur, setErreur] = useState("");
+  const [rolesDemandes, setRolesDemandes] = useState<Partial<Record<string, Role>>>({});
+  const [erreurStatut, setErreurStatut] = useState("");
   const [ouvert, setOuvert] = useState(false);
 
   useEffect(
@@ -46,7 +48,21 @@ export default function Utilisateurs() {
     }
   };
 
-  const basculer = (u: Ligne) => updateDoc(doc(db, "utilisateurs", u.id), { actif: !u.actif });
+  const changerStatut = async (u: Ligne) => {
+    setErreurStatut("");
+    try {
+      const ref = doc(db, "utilisateurs", u.id);
+      if (u.enAttente) {
+        const roleChoisi = rolesDemandes[u.id];
+        if (!roleChoisi) return;
+        await updateDoc(ref, { role: roleChoisi, actif: true, enAttente: false });
+      } else {
+        await updateDoc(ref, { actif: !u.actif });
+      }
+    } catch {
+      setErreurStatut("Impossible de modifier le statut du compte.");
+    }
+  };
 
   return (
     <section>
@@ -87,6 +103,7 @@ export default function Utilisateurs() {
         </form>
       </Modal>
 
+      {erreurStatut && <p className="erreur" role="alert">{erreurStatut}</p>}
       <div className="defile">
         <table>
           <thead>
@@ -103,11 +120,18 @@ export default function Utilisateurs() {
               <tr key={u.id}>
                 <td>{u.nom}</td>
                 <td>{u.email}</td>
-                <td>{u.role}</td>
-                <td>{u.actif ? "Actif" : "Désactivé"}</td>
+                <td>{u.enAttente ? (
+                  <select aria-label={`Rôle pour ${u.nom}`} value={rolesDemandes[u.id] ?? ""}
+                    onChange={(e) => setRolesDemandes({ ...rolesDemandes, [u.id]: e.target.value as Role })}>
+                    <option value="">Choisir un rôle</option>
+                    {ROLES.map((r) => <option key={r}>{r}</option>)}
+                  </select>
+                ) : u.role}</td>
+                <td>{u.enAttente ? "En attente" : u.actif ? "Actif" : "Désactivé"}</td>
                 <td>
-                  <button className="lien" onClick={() => basculer(u)}>
-                    {u.actif ? "Désactiver" : "Réactiver"}
+                  <button className="lien" disabled={u.enAttente && !rolesDemandes[u.id]}
+                    onClick={() => changerStatut(u)}>
+                    {u.enAttente ? "Approuver" : u.actif ? "Désactiver" : "Réactiver"}
                   </button>
                 </td>
               </tr>
