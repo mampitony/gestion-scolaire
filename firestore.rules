@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function aUnProfil() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/utilisateurs/$(request.auth.uid));
+    }
+    function profil() {
+      return get(/databases/$(database)/documents/utilisateurs/$(request.auth.uid)).data;
+    }
+    function connecte() { return aUnProfil() && profil().actif == true; }
+    function role() { return profil().role; }
+    function gestion() { return connecte() && role() in ['admin', 'directeur', 'secretaire']; }
+
+    match /utilisateurs/{uid} {
+      allow read: if request.auth != null
+        && (request.auth.uid == uid || (connecte() && role() in ['admin', 'directeur']));
+      allow write: if connecte() && role() == 'admin';
+    }
+
+    match /classes/{id} {
+      allow read: if connecte();
+      allow write: if gestion();
+    }
+
+    match /matieres/{id} {
+      allow read: if connecte();
+      allow write: if gestion();
+    }
+
+    // Un dossier élève n'est jamais supprimé (RG09) : on change son statut.
+    match /eleves/{id} {
+      allow read: if connecte();
+      allow create, update: if gestion();
+      allow delete: if false;
+    }
+
+    // Tarifs de l'année : lecture pour tous les comptes actifs, écriture admin/directeur.
+    match /parametres/{id} {
+      allow read: if connecte();
+      allow write: if connecte() && role() in ['admin', 'directeur'];
+    }
+
+    // Paiements : jamais modifiés ni supprimés (traçabilité des reçus).
+    match /paiements/{id} {
+      allow read: if connecte() && role() in ['admin', 'directeur', 'secretaire', 'caissier'];
+      allow create: if connecte() && role() in ['admin', 'directeur', 'caissier'];
+      allow update, delete: if false;
+    }
+
+    // Notes : un enseignant ne lit et ne modifie que ses propres notes.
+    match /notes/{id} {
+      allow read: if gestion()
+        || (connecte() && role() == 'enseignant' && resource.data.enseignantUid == request.auth.uid);
+      allow create: if (connecte() && role() in ['admin', 'directeur'])
+        || (connecte() && role() == 'enseignant' && request.resource.data.enseignantUid == request.auth.uid);
+      allow update: if (connecte() && role() in ['admin', 'directeur'])
+        || (connecte() && role() == 'enseignant'
+            && resource.data.enseignantUid == request.auth.uid
+            && request.resource.data.enseignantUid == request.auth.uid);
+      allow delete: if connecte() && role() in ['admin', 'directeur'];
+    }
+
+    // Absences et retards : saisis par le surveillant ou la gestion.
+    match /absences/{id} {
+      allow read, create: if connecte() && role() in ['admin', 'directeur', 'secretaire', 'surveillant'];
+      allow update, delete: if gestion();
+    }
+
+    match /compteurs/{id} {
+      allow read, write: if gestion() || (connecte() && role() == 'caissier' && id == 'recu');
+    }
+  }
+}

@@ -1,0 +1,27 @@
+.barre { display: flex; flex-wrap: wrap; gap: .75rem; align-items: end; margin-bottom: 1rem; }
+.badge { display: inline-block; padding: .1rem .55rem; border-radius: 99px; font-size: .82rem; background: #e8edf2; }
+.badge[data-s="Payé"] { background: #d1fae5; color: #065f46; }
+.badge[data-s="Partiel"] { background: #fef3c7; color: #92400e; }
+.badge[data-s="En retard"] { background: #fee2e2; color: #991b1b; }
+.badge[data-s="À payer"] { background: #dbeafe; color: #1e40af; }
+.bulletin { border: 1px solid var(--trait); border-radius: 8px; padding: 1.25rem; margin-top: 1rem; }
+.bulletin h3 { margin-bottom: .5rem; }
+.signature { margin-top: 2rem; }
+@media print {
+  aside, .no-print { display: none !important; }
+  .app { display: block; }
+  main { padding: 0; }
+  section { border: 0; padding: 0; }
+  .bulletin { border: 0; margin: 0; page-break-after: always; }
+}
+
+/* Dossier élève */
+.bloc { margin-bottom: 1.5rem; }
+.bloc h3 { margin-bottom: .5rem; }
+.bloc h4 { margin: 1rem 0 .4rem; }
+.puces { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: .75rem; }
+.puce { display: flex; flex-direction: column; background: var(--fond); border: 1px solid var(--trait); border-radius: 8px; padding: .5rem .85rem; }
+.puce small { color: #5b6b7f; }
+@media print {
+  .dossier.solo > :not(.bulletin) { display: none !important; }
+}
