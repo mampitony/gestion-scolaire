@@ -20,4 +20,5 @@ export interface Profil {
   email: string;
   role: Role;
   actif: boolean;
+  enAttente?: boolean;
 }
