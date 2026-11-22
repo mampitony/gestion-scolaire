@@ -1,0 +1,74 @@
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User } from "firebase/auth";
+import { doc, onSnapshot } from "firebase/firestore";
+import { auth, db } from "../../shared/firebase";
+import type { Profil } from "../utilisateurs/types";
+
+interface Ctx {
+  user: User | null;
+  profil: Profil | null;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+}
+
+const AuthCtx = createContext<Ctx>(null!);
+export const useAuth = () => useContext(AuthCtx);
+
+const INACTIVITE_MS = 15 * 60 * 1000;
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [profil, setProfil] = useState<Profil | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let quitterProfil: (() => void) | undefined;
+    const quitterAuth = onAuthStateChanged(auth, (u) => {
+      quitterProfil?.();
+      setUser(u);
+      setProfil(null);
+      setLoading(Boolean(u));
+      if (!u) return;
+
+      quitterProfil = onSnapshot(doc(db, "utilisateurs", u.uid), (snapshot) => {
+        setProfil(snapshot.exists() ? (snapshot.data() as Profil) : null);
+        setLoading(false);
+      }, () => {
+        setProfil(null);
+        setLoading(false);
+      });
+    });
+    return () => {
+      quitterAuth();
+      quitterProfil?.();
+    };
+  }, []);
+
+  // Déconnexion automatique après inactivité
+  useEffect(() => {
+    if (!user) return;
+    let t = setTimeout(() => signOut(auth), INACTIVITE_MS);
+    const reset = () => {
+      clearTimeout(t);
+      t = setTimeout(() => signOut(auth), INACTIVITE_MS);
+    };
+    const events = ["click", "keydown", "mousemove"];
+    events.forEach((e) => window.addEventListener(e, reset));
+    return () => {
+      clearTimeout(t);
+      events.forEach((e) => window.removeEventListener(e, reset));
+    };
+  }, [user]);
+
+  const login = async (email: string, password: string) => {
+    await signInWithEmailAndPassword(auth, email, password);
+  };
+  const logout = () => signOut(auth);
+
+  return (
+    <AuthCtx.Provider value={{ user, profil, loading, login, logout }}>
+      {children}
+    </AuthCtx.Provider>
+  );
+}

@@ -1,15 +1,16 @@
 import { useState } from "react";
-import { useAuth } from "./auth";
-import Login from "./pages/Login";
-import Utilisateurs from "./pages/Utilisateurs";
-import Eleves from "./pages/Eleves";
-import Frais from "./pages/Frais";
-import Notes from "./pages/Notes";
-import Bulletins from "./pages/Bulletins";
-import DossierEleve from "./pages/DossierEleve";
-import Absences from "./pages/Absences";
-import CrudTable from "./components/CrudTable";
-import "./extra.css";
+import { useAuth } from "./features/login/auth";
+import Login from "./features/login/Login";
+import Utilisateurs from "./features/utilisateurs/Utilisateurs";
+import Eleves from "./features/eleves/Eleves";
+import Frais from "./features/frais/Frais";
+import Notes from "./features/notes/Notes";
+import Bulletins from "./features/bulletins/Bulletins";
+import DossierEleve from "./features/dossier-eleve/DossierEleve";
+import Absences from "./features/absences/Absences";
+import Classes from "./features/classes/Classes";
+import Matieres from "./features/matieres/Matieres";
+import "./shared/styles/extra.css";
 
 type Onglet = [string, string];
 
@@ -19,11 +20,13 @@ export default function App() {
 
   if (loading) return <p className="centre">Chargement…</p>;
   if (!user) return <Login />;
-  if (!profil || !profil.actif)
+  if (!profil || !profil.actif || profil.enAttente)
     return (
       <div className="centre">
         <div className="carte">
-          <p>Ce compte n'a pas de profil actif. Contactez l'administrateur.</p>
+          <p>{profil?.enAttente
+            ? "Votre compte est en attente d’approbation par l’administrateur."
+            : "Ce compte n’a pas de profil actif. Contactez l’administrateur."}</p>
           <button onClick={logout}>Se déconnecter</button>
         </div>
       </div>
@@ -68,27 +71,8 @@ export default function App() {
         {actif === "dossier" && <DossierEleve />}
         {actif === "absences" && <Absences />}
         {actif === "bulletins" && <Bulletins />}
-        {actif === "classes" && (
-          <CrudTable
-            nom="classes"
-            titre="Classes"
-            champs={[
-              { key: "nom", label: "Nom (ex. 6e A)" },
-              { key: "niveau", label: "Niveau", type: "select", options: ["6e", "5e", "4e", "3e", "Seconde", "Première", "Terminale"] },
-              { key: "anneeScolaire", label: "Année scolaire (ex. 2026-2027)" },
-            ]}
-          />
-        )}
-        {actif === "matieres" && (
-          <CrudTable
-            nom="matieres"
-            titre="Matières"
-            champs={[
-              { key: "nom", label: "Matière" },
-              { key: "coefficient", label: "Coefficient", type: "number" },
-            ]}
-          />
-        )}
+        {actif === "classes" && <Classes />}
+        {actif === "matieres" && <Matieres />}
       </main>
     </div>
   );
