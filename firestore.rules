@@ -9,14 +9,43 @@ service cloud.firestore {
     function profil() {
       return get(/databases/$(database)/documents/utilisateurs/$(request.auth.uid)).data;
     }
-    function connecte() { return aUnProfil() && profil().actif == true; }
+    function connecte() {
+      return aUnProfil() && profil().actif == true && profil().get('enAttente', false) == false
+        && (profil().get('historiqueVersion', 0) == 0
+            || request.auth.token.get('email', '').lower() == profil().email);
+    }
     function role() { return profil().role; }
     function gestion() { return connecte() && role() in ['admin', 'directeur', 'secretaire']; }
 
     match /utilisateurs/{uid} {
       allow read: if request.auth != null
         && (request.auth.uid == uid || (connecte() && role() in ['admin', 'directeur']));
-      allow write: if connecte() && role() == 'admin';
+      allow create: if (connecte() && role() == 'admin')
+        || (request.auth != null && request.auth.uid == uid
+            && request.resource.data.keys().hasOnly(['nom', 'email', 'role', 'actif', 'enAttente'])
+            && request.resource.data.nom is string
+            && request.resource.data.nom.size() > 0
+            && request.resource.data.nom.size() <= 120
+            && request.resource.data.email is string
+            && request.resource.data.email == request.auth.token.email
+            && request.resource.data.role == 'secretaire'
+            && request.resource.data.actif == false
+            && request.resource.data.enAttente == true);
+      allow update: if connecte() && role() == 'admin'
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['email', 'historiqueVersion']);
+      allow delete: if connecte() && role() == 'admin' && resource.data.role != 'admin';
+    }
+
+    match /journalAdmin/{id} {
+      allow read: if connecte() && role() == 'admin'
+        && resource.data.adminUid == request.auth.uid;
+      allow create: if connecte() && role() == 'admin'
+        && request.resource.data.keys().hasOnly(['adminUid', 'action', 'date', 'version'])
+        && request.resource.data.adminUid == request.auth.uid
+        && request.resource.data.action is string
+        && request.resource.data.action.size() <= 1000
+        && request.resource.data.date == request.time
+        && request.resource.data.version == profil().get('historiqueVersion', 0);
     }
 
     match /classes/{id} {

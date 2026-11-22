@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "./features/login/auth";
 import Login from "./features/login/Login";
+import CompteAdmin from "./features/compte-admin/CompteAdmin";
 import Utilisateurs from "./features/utilisateurs/Utilisateurs";
 import Eleves from "./features/eleves/Eleves";
 import Frais from "./features/frais/Frais";
@@ -35,7 +36,7 @@ export default function App() {
   const r = profil.role;
   const a = (...roles: string[]) => roles.includes(r);
   const onglets: Onglet[] = [
-    ...(a("admin") ? ([["utilisateurs", "Utilisateurs"]] as Onglet[]) : []),
+    ...(a("admin") ? ([["utilisateurs", "Utilisateurs"], ["compte-admin", "Mon compte"]] as Onglet[]) : []),
     ...(a("admin", "directeur", "secretaire") ? ([["eleves", "Élèves"], ["dossier", "Dossier élève"], ["classes", "Classes"], ["matieres", "Matières"]] as Onglet[]) : []),
     ...(a("admin", "directeur", "secretaire", "caissier") ? ([["frais", "Frais de scolarité"]] as Onglet[]) : []),
     ...(a("admin", "directeur", "enseignant") ? ([["notes", "Saisie des notes"]] as Onglet[]) : []),
@@ -65,6 +66,7 @@ export default function App() {
       <main>
         {!actif && <p className="vide">Les modules de votre rôle seront ajoutés prochainement.</p>}
         {actif === "utilisateurs" && <Utilisateurs />}
+        {actif === "compte-admin" && <CompteAdmin user={user} version={profil.historiqueVersion ?? 0} logout={logout} />}
         {actif === "eleves" && <Eleves />}
         {actif === "frais" && <Frais />}
         {actif === "notes" && <Notes />}
